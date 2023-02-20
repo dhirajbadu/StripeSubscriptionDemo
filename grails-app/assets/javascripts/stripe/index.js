@@ -1,10 +1,12 @@
 'use strict';
+var stripe = Stripe(publishable_key);
 
-var stripe = Stripe('pk_test_51M5PRYDxwUhLBVzYuCIlXsINOvRmYDIzwdf8BcBpW7CVSXlU1OompmgHiNfMsNxvMs9XtZMX9SBrx71H32ooHuqN00Aip2UrEb');
+function registerElements(elements, exampleName) {
+    var formClass = '.' + exampleName;
+    var example = document.querySelector(formClass);
 
-function registerElements(elements) {
-
-    var form = document.getElementById('checkout-form');
+    var form = example.querySelector('form');
+    var resetButton = example.querySelector('a.reset');
     var error = form.querySelector('.error');
     var errorMessage = error.querySelector('.message');
 
@@ -13,7 +15,7 @@ function registerElements(elements) {
             form.querySelectorAll(
                 "input[type='text'], input[type='email'], input[type='tel']"
             ),
-            function (input) {
+            function(input) {
                 input.removeAttribute('disabled');
             }
         );
@@ -24,7 +26,7 @@ function registerElements(elements) {
             form.querySelectorAll(
                 "input[type='text'], input[type='email'], input[type='tel']"
             ),
-            function (input) {
+            function(input) {
                 input.setAttribute('disabled', 'true');
             }
         );
@@ -43,8 +45,8 @@ function registerElements(elements) {
 
     // Listen for errors from each Element, and show error messages in the UI.
     var savedErrors = {};
-    elements.forEach(function (element, idx) {
-        element.on('change', function (event) {
+    elements.forEach(function(element, idx) {
+        element.on('change', function(event) {
             if (event.error) {
                 error.classList.add('visible');
                 savedErrors[idx] = event.error.message;
@@ -55,7 +57,7 @@ function registerElements(elements) {
                 // Loop over the saved errors and find the first one, if any.
                 var nextError = Object.keys(savedErrors)
                     .sort()
-                    .reduce(function (maybeFoundError, key) {
+                    .reduce(function(maybeFoundError, key) {
                         return maybeFoundError || savedErrors[key];
                     }, null);
 
@@ -71,13 +73,13 @@ function registerElements(elements) {
     });
 
     // Listen on the form's 'submit' handler...
-    form.addEventListener('submit', function (e) {
+    form.addEventListener('submit', function(e) {
         e.preventDefault();
 
         // Trigger HTML5 validation UI on the form if any of the inputs fail
         // validation.
         var plainInputsValid = true;
-        Array.prototype.forEach.call(form.querySelectorAll('input'), function (
+        Array.prototype.forEach.call(form.querySelectorAll('input'), function(
             input
         ) {
             if (input.checkValidity && !input.checkValidity()) {
@@ -89,6 +91,9 @@ function registerElements(elements) {
             triggerBrowserValidation();
             return;
         }
+
+        // Show a loading screen...
+        example.classList.add('submitting');
 
         // Disable all inputs.
         disableInputs();
@@ -129,8 +134,26 @@ function registerElements(elements) {
             });
         }
     });
-}
 
+    resetButton.addEventListener('click', function(e) {
+        e.preventDefault();
+        // Resetting the form (instead of setting the value to `''` for each input)
+        // helps us clear webkit autofill styles.
+        form.reset();
+
+        // Clear each Element.
+        elements.forEach(function(element) {
+            element.clear();
+        });
+
+        // Reset error state as well.
+        error.classList.remove('visible');
+
+        // Resetting the form does not un-disable inputs, so we need to do it separately:
+        enableInputs();
+        example.classList.remove('submitted');
+    });
+}
 function stripeTokenHandler(token) {
     var form = document.getElementById('checkout-form');
     var email = form.querySelector('#email').value;
@@ -168,7 +191,7 @@ function stripeTokenHandler(token) {
     })
         .then(function (response) {
             if (response.ok) {
-                // Redirect the customer to a success page
+                // Redirect to a success page
                 window.location.href = window.location.origin + '/success';
             } else {
                 // Handle errors

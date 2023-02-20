@@ -25,7 +25,7 @@ class StripeService {
     CustomerService customerService
 //    init stripe
     def init() {
-        Stripe.apiKey = Holders.config.stripe.secret
+        Stripe.apiKey = System.getenv("STRIPE_SECRET")
     }
 //    create plan
     def createPlan(SubscriptionPlan subscriptionPlan, MyProduct product) {

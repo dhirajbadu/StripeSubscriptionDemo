@@ -141,6 +141,3 @@ environments:
                 testOnReturn: false
                 jdbcInterceptors: ConnectionState
                 defaultTransactionIsolation: 2 # TRANSACTION_READ_COMMITTED
-
-stripe:
-    secret: "sk_test_51M5PRYDxwUhLBVzY569i3X8GQFBht1oyA4tLGBwVpKXUDoE0Q1YdpBNmC8sHX7dH3lcRiwofLyUQ95qMB1p7CNd900Gc6dImae"

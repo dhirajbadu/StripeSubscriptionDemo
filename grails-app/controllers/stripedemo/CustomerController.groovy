@@ -23,6 +23,7 @@ class CustomerController {
     }
 
     def create() {
+        String STRIPE_PUBLISHABLE_KEY = System.getenv("STRIPE_PUBLISHABLE_KEY")
         Long id = params?.id ? Long.parseLong(params?.id) : null
         Customer customer = null
         def subscriptionType = null
@@ -32,7 +33,7 @@ class CustomerController {
             subscriptionType = SubscriptionPlan.findByTitleAndPlanType(params?.planName, params?.plan)
             subscriptionCardDetails = stripeService.getCardDetails(customer?.getSubscriptionToken())
         }
-        [customer: customer, subscriptionType: subscriptionType, subscriptionCardDetails: subscriptionCardDetails]
+        [customer: customer, subscriptionType: subscriptionType, subscriptionCardDetails: subscriptionCardDetails, STRIPE_PUBLISHABLE_KEY: STRIPE_PUBLISHABLE_KEY]
     }
 
     def subscription(Long id) {
