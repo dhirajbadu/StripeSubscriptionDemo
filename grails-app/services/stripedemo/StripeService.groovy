@@ -83,8 +83,8 @@ class StripeService {
         try {
             log.warn("Subscription process started")
             // Create a new plan for the subscription
-            SubscriptionPlan subscriptionPlan= SubscriptionPlan.findByPlanType(SubscriptionPeriod.FREE)
-            Plan plan   = getPlanFromStripe(subscriptionPlan?.getStripePlanId())
+            SubscriptionPlan subscriptionPlan = SubscriptionPlan.findByPlanType(SubscriptionPeriod.FREE)
+            Plan plan = getPlanFromStripe(subscriptionPlan?.getStripePlanId())
             // Set up the subscription parameters
             SubscriptionCreateParams subscriptionCreateParams = SubscriptionCreateParams.builder()
                     .setCustomer(customer.getId())
@@ -176,7 +176,7 @@ class StripeService {
         SubscriptionType subscriptionType = request?.planName as SubscriptionType
         SubscriptionPeriod subscriptionPeriod = request?.plan as SubscriptionPeriod
         SubscriptionPlan subscriptionPlan = SubscriptionPlan.findByTitleAndPlanType(subscriptionType, subscriptionPeriod)
-        Plan plan   = getPlanFromStripe(subscriptionPlan?.getStripePlanId())
+        Plan plan = getPlanFromStripe(subscriptionPlan?.getStripePlanId())
 //        Price price = createSubscriptionPrice(plan?.getProduct(), request, subscriptionPlan.rate)
         Long trialEndPeriod = System.currentTimeMillis() / 1000L
         SubscriptionUpdateParams params =
@@ -203,7 +203,7 @@ class StripeService {
             SubscriptionType subscriptionType = request?.planName as SubscriptionType
             SubscriptionPeriod subscriptionPeriod = request?.plan as SubscriptionPeriod
             SubscriptionPlan subscriptionPlan = SubscriptionPlan.findByTitleAndPlanType(subscriptionType, subscriptionPeriod)
-            Plan plan   = getPlanFromStripe(subscriptionPlan?.getStripePlanId())
+            Plan plan = getPlanFromStripe(subscriptionPlan?.getStripePlanId())
             // Set up the subscription parameters
             SubscriptionCreateParams subscriptionCreateParams = SubscriptionCreateParams.builder()
                     .setCustomer(customer.getId())
@@ -415,4 +415,20 @@ class StripeService {
         }
     }
 
+    String evaluateButtonText(stripedemo.Customer customer, params) {
+        if (customer?.getCurrentSubscription().equals(SubscriptionType.PREMIUM) && params?.planName.equals('BASIC')) {
+            return "Downgrade"
+        } else if (customer?.getCurrentSubscription().equals(SubscriptionType.BASIC) && params?.planName.equals('PREMIUM')) {
+            return "Upgrade"
+        } else if ((customer?.getCurrentSubscription().equals(SubscriptionType.PREMIUM) && params?.planName.equals('PREMIUM')) && (customer?.getCurrentSubscriptionType().equals(SubscriptionPeriod.YEARLY) && params?.plan.equals('MONTHLY'))) {
+            return "Downgrade"
+        } else if ((customer?.getCurrentSubscription().equals(SubscriptionType.PREMIUM) && params?.planName.equals('PREMIUM')) && (customer?.getCurrentSubscriptionType().equals(SubscriptionPeriod.MONTHLY) && params?.plan.equals('YEARLY'))) {
+            return "Upgrade"
+        } else if ((customer?.getCurrentSubscription().equals(SubscriptionType.BASIC) && params?.planName.equals('BASIC')) && (customer?.getCurrentSubscriptionType().equals(SubscriptionPeriod.YEARLY) && params?.plan.equals('MONTHLY'))) {
+            return "Downgrade"
+        } else if ((customer?.getCurrentSubscription().equals(SubscriptionType.BASIC) && params?.planName.equals('BASIC')) && (customer?.getCurrentSubscriptionType().equals(SubscriptionPeriod.MONTHLY) && params?.plan.equals('YEARLY'))) {
+            return "Upgrade"
+        }
+        return "Create new Customer"
+    }
 }

@@ -186,10 +186,10 @@
                         </g:else>
                         <g:if test="${subscriptionType}">
                             <button type="submit"
-                                    data-tid="elements_examples.form.pay_button">Subscribe $${subscriptionType?.getRate() + "/" + subscriptionType?.getPlanType().text}</button>
+                                    data-tid="elements_examples.form.pay_button">${buttonText} $${subscriptionType?.getRate() + "/" + subscriptionType?.getPlanType().text}</button>
                         </g:if>
                         <g:else>
-                            <button type="submit" data-tid="elements_examples.form.pay_button">Create New Customer</button>
+                            <button type="submit" data-tid="elements_examples.form.pay_button">${buttonText}</button>
                         </g:else>
                     </fieldset>
                     <div class="error" role="alert"><svg xmlns="http://www.w3.org/2000/svg" width="17" height="17" viewBox="0 0 17 17">

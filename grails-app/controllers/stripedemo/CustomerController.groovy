@@ -28,12 +28,15 @@ class CustomerController {
         Customer customer = null
         def subscriptionType = null
         def subscriptionCardDetails = null
+        def buttonText = "Create new Customer"
         if (id) {
             customer = customerService.get(id)
             subscriptionType = SubscriptionPlan.findByTitleAndPlanType(params?.planName, params?.plan)
             subscriptionCardDetails = stripeService.getCardDetails(customer?.getSubscriptionToken())
+            buttonText = stripeService.evaluateButtonText(customer, params)
         }
-        [customer: customer, subscriptionType: subscriptionType, subscriptionCardDetails: subscriptionCardDetails, STRIPE_PUBLISHABLE_KEY: STRIPE_PUBLISHABLE_KEY]
+        [customer              : customer, subscriptionType: subscriptionType, subscriptionCardDetails: subscriptionCardDetails,
+         STRIPE_PUBLISHABLE_KEY: STRIPE_PUBLISHABLE_KEY, buttonText: buttonText]
     }
 
     def subscription(Long id) {
