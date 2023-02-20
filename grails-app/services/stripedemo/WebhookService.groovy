@@ -23,6 +23,8 @@ class WebhookService {
                 case 'customer.subscription.updated':
                     stripeService.eventCustomerSubscriptionUpdated(json)
                     break
+                default:
+                    System.out.println("Unhandled event type: " + json.type);
             }
             return [status: 200, message: "Success"]
         } catch (Exception x) {
