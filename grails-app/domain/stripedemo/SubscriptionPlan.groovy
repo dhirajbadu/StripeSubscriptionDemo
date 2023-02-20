@@ -7,6 +7,8 @@ class SubscriptionPlan {
 
     Long rate
 
+    String stripePlanId
+
 
     public SubscriptionPlan(SubscriptionType title, SubscriptionPeriod planType, Long rate) {
         this.title = title
@@ -16,5 +18,6 @@ class SubscriptionPlan {
     static constraints = {
         planType(null: false, nullable: false)
         rate(null: false, nullable: false)
+        stripePlanId(null: false, nullable: false)
     }
 }

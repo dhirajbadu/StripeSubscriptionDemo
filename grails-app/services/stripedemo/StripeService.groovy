@@ -3,7 +3,6 @@ package stripedemo
 import com.stripe.Stripe
 import com.stripe.exception.StripeException
 import com.stripe.model.Card
-import com.stripe.model.PaymentIntent
 import com.stripe.model.Plan
 import com.stripe.model.Price
 import com.stripe.model.Product
@@ -18,8 +17,7 @@ import com.stripe.param.SubscriptionCreateParams
 import com.stripe.param.SubscriptionUpdateParams
 import grails.gorm.transactions.Transactional
 import grails.util.Holders
-import io.micronaut.json.tree.JsonObject
-import com.stripe.net.RequestOptions;
+
 
 @Transactional
 class StripeService {
@@ -30,22 +28,20 @@ class StripeService {
         Stripe.apiKey = Holders.config.stripe.secret
     }
 //    create plan
-    def createPlan(request) {
-        Product product = createProduct(request)
-        Long amount = Long.parseLong(request?.amount)
+    def createPlan(SubscriptionPlan subscriptionPlan, MyProduct product) {
         def interval = PlanCreateParams.Interval.YEAR
-        if (request?.plan.equals("MONTHLY")) {
+        if (subscriptionPlan?.planType.equals(SubscriptionPeriod.MONTHLY)) {
             interval = PlanCreateParams.Interval.MONTH
-        } else if (request?.plan.equals("YEARLY")) {
+        } else if (subscriptionPlan?.planType.equals(SubscriptionPeriod.MONTHLY)) {
             interval = PlanCreateParams.Interval.YEAR
         }
         PlanCreateParams params =
                 PlanCreateParams.builder()
                         .setCurrency("usd")
-                        .setNickname(request?.planName)
-                        .setProduct(product.getId())
+                        .setNickname(subscriptionPlan?.title.text.toString())
+                        .setProduct(product.getStripeProductId())
                         .setInterval(interval)
-                        .setAmount(amount * 100L)
+                        .setAmount(subscriptionPlan.rate * 100L)
                         .build()
         try {
             Plan plan = Plan.create(params)
@@ -79,12 +75,16 @@ class StripeService {
         return customer
     }
 
+    def getPlanFromStripe(planId) {
+        return Plan.retrieve(planId)
+    }
+
     def freeSubscription(request, customer) {
         try {
             log.warn("Subscription process started")
             // Create a new plan for the subscription
-            Plan plan = createPlan(request)
-
+            SubscriptionPlan subscriptionPlan= SubscriptionPlan.findByPlanType(SubscriptionPeriod.FREE)
+            Plan plan   = getPlanFromStripe(subscriptionPlan?.getStripePlanId())
             // Set up the subscription parameters
             SubscriptionCreateParams subscriptionCreateParams = SubscriptionCreateParams.builder()
                     .setCustomer(customer.getId())
@@ -148,8 +148,7 @@ class StripeService {
         return null
     }
 
-    def createSubscriptionPrice(productId, request) {
-        Long amount = Long.parseLong(request?.amount)
+    def createSubscriptionPrice(productId, request, rate) {
         def interval = PriceCreateParams.Recurring.Interval.YEAR
         if (request?.plan.equals("MONTHLY")) {
             interval = PriceCreateParams.Recurring.Interval.MONTH
@@ -161,7 +160,7 @@ class StripeService {
                         .builder()
                         .setProduct(productId)
                         .setCurrency("usd")
-                        .setUnitAmount(amount * 100L)
+                        .setUnitAmount(rate * 100L)
                         .setRecurring(
                                 PriceCreateParams.Recurring
                                         .builder()
@@ -174,7 +173,11 @@ class StripeService {
 
     def updateTokenBasedSubscription(client, customer, request) {
         Subscription subscription = Subscription.retrieve(client.getSubscriptionId())
-        Price price = createSubscriptionPrice(client?.subscriptionProductId, request)
+        SubscriptionType subscriptionType = request?.planName as SubscriptionType
+        SubscriptionPeriod subscriptionPeriod = request?.plan as SubscriptionPeriod
+        SubscriptionPlan subscriptionPlan = SubscriptionPlan.findByTitleAndPlanType(subscriptionType, subscriptionPeriod)
+        Plan plan   = getPlanFromStripe(subscriptionPlan?.getStripePlanId())
+//        Price price = createSubscriptionPrice(plan?.getProduct(), request, subscriptionPlan.rate)
         Long trialEndPeriod = System.currentTimeMillis() / 1000L
         SubscriptionUpdateParams params =
                 SubscriptionUpdateParams.builder()
@@ -183,13 +186,13 @@ class StripeService {
                         .addItem(
                                 SubscriptionUpdateParams.Item.builder()
                                         .setId(subscription.getItems().getData().get(0).getId())
-                                        .setPrice(price.getId())
+                                        .setPlan(plan.getId())
                                         .build())
                         .build();
 
         subscription.update(params);
-        saveCustomer(subscription, request, customer, subscription.getItems().getData().get(0).getPlan().getProduct())
-        saveSubscriptionLogs(request, customer, subscription, subscription.getItems().getData().get(0).getPlan().getProduct())
+        saveCustomer(subscription, request, customer, plan?.getProduct())
+        saveSubscriptionLogs(request, customer, subscription, plan?.getProduct())
         return subscription
     }
 
@@ -197,8 +200,10 @@ class StripeService {
         try {
             log.warn("Subscription process started")
             // Create a new plan for the subscription
-            Plan plan = createPlan(request)
-
+            SubscriptionType subscriptionType = request?.planName as SubscriptionType
+            SubscriptionPeriod subscriptionPeriod = request?.plan as SubscriptionPeriod
+            SubscriptionPlan subscriptionPlan = SubscriptionPlan.findByTitleAndPlanType(subscriptionType, subscriptionPeriod)
+            Plan plan   = getPlanFromStripe(subscriptionPlan?.getStripePlanId())
             // Set up the subscription parameters
             SubscriptionCreateParams subscriptionCreateParams = SubscriptionCreateParams.builder()
                     .setCustomer(customer.getId())
@@ -255,8 +260,8 @@ class StripeService {
         customer1.setSubscriptionToken(request?.token)
         customer1.setSubscriptionId(subscription?.getId())
         def customerSubscription = customer1?.customerSubscription
-        if(!customerSubscription){
-         customerSubscription = new CustomerSubscription()
+        if (!customerSubscription) {
+            customerSubscription = new CustomerSubscription()
         }
         // Access subscription data
         customerSubscription.subscriptionId = subscription.getId();
@@ -282,7 +287,7 @@ class StripeService {
             deletedSubscription = Subscription.retrieve(customer1?.getSubscriptionId()).cancel(null);
             customer1.isSubscriptionCanceled = true
             customer1.currentSubscription = SubscriptionType.NO_SUBSCRIPTION
-            customer1.currentSubscriptionType =SubscriptionPeriod.NO_PLAN
+            customer1.currentSubscriptionType = SubscriptionPeriod.NO_PLAN
             customer1.subscriptionId = null
             customer1.save(flush: true, failOnError: true)
             // Handle the success here
@@ -381,6 +386,33 @@ class StripeService {
         )
         payment.save(failOnError: true, flush: true)
         return payment
+    }
+
+    def initProductAndPlan() {
+        SubscriptionPeriod
+        if (!SubscriptionPlan.findByTitleInList([SubscriptionType.BASIC, SubscriptionType.PREMIUM])) {
+            SubscriptionPlan.saveAll(List.of(
+                    new SubscriptionPlan(SubscriptionType.FREE, SubscriptionPeriod.FREE, 0L),
+                    new SubscriptionPlan(SubscriptionType.BASIC, SubscriptionPeriod.MONTHLY, 9L),
+                    new SubscriptionPlan(SubscriptionType.PREMIUM, SubscriptionPeriod.MONTHLY, 20L),
+                    new SubscriptionPlan(SubscriptionType.BASIC, SubscriptionPeriod.YEARLY, 100L),
+                    new SubscriptionPlan(SubscriptionType.PREMIUM, SubscriptionPeriod.YEARLY, 300L)
+            ))
+        }
+//         create product in stripe and db
+        if (!MyProduct.count()) {
+            init()
+            def productDetails = [name: "My Product", description: "My Product Description"]
+            Product product = createProduct(productDetails)
+            new MyProduct(name: product.getName(), description: product.getDescription(), url: product.getUrl(), stripeProductId: product.getId()).save(flush: true, failOnError: true)
+            //        create plans in stripe
+            MyProduct myProduct = MyProduct.findByName("My Product")
+            SubscriptionPlan.list().each {
+                def plan = createPlan(it, myProduct)
+                it.stripePlanId = plan.getId()
+                it.save(failOnError: true, flush: true)
+            }
+        }
     }
 
 }
