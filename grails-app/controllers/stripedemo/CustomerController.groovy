@@ -1,5 +1,6 @@
 package stripedemo
 
+import grails.util.Holders
 import grails.validation.ValidationException
 
 import static org.springframework.http.HttpStatus.*
@@ -23,7 +24,8 @@ class CustomerController {
     }
 
     def create() {
-        String STRIPE_PUBLISHABLE_KEY = System.getenv("STRIPE_PUBLISHABLE_KEY")
+//        String STRIPE_PUBLISHABLE_KEY = System.getenv("STRIPE_PUBLISHABLE_KEY")
+        String STRIPE_PUBLISHABLE_KEY = Holders.config.stripe.publishable_key
         Long id = params?.id ? Long.parseLong(params?.id) : null
         Customer customer = null
         def subscriptionType = null

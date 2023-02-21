@@ -16,6 +16,7 @@ import com.stripe.param.ProductCreateParams
 import com.stripe.param.SubscriptionCreateParams
 import com.stripe.param.SubscriptionUpdateParams
 import grails.gorm.transactions.Transactional
+import grails.util.Holder
 import grails.util.Holders
 
 
@@ -26,6 +27,7 @@ class StripeService {
 //    init stripe
     def init() {
         Stripe.apiKey = System.getenv("STRIPE_SECRET")
+        Stripe.apiKey = Holders.config.stripe.secret
     }
 //    create plan
     def createPlan(SubscriptionPlan subscriptionPlan, MyProduct product) {
